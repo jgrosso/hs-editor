@@ -39,9 +39,19 @@ insertNewline :: Command
 insertNewline = insertChar '\n'
 
 
+runCommand :: String -> Command
+runCommand commandText = if take (length insertCharPrefix) commandText == insertCharPrefix
+                         then case drop (length insertCharPrefix) commandText of
+                                char:[] -> insertChar char
+                                _       -> return . (minibuffer.message .~ "Unrecognized command!")
+                         else return . (minibuffer.message .~ "Unrecognized command!")
+  where insertCharPrefix :: String
+        insertCharPrefix = "insertChar:"
+
+
 handleReturn :: Command
 handleReturn editorState = case editorState^.inputFocus of
-                             MinibufferFocused -> clearMinibuffer editorState >>= focusBuffer
+                             MinibufferFocused -> runCommand (editorState^.minibuffer.commandInput.text) editorState >>= clearInput (minibuffer.commandInput) >>= focusBuffer
                              _                 -> insertNewline editorState
 
 
@@ -55,10 +65,6 @@ backspace editorState = if (editorState^.buffer.cursor.position) /= 0
 
 clearInput :: FocusedInputLens -> Command
 clearInput focusedInput = return . (focusedInput .~ InputState { _text = "", _cursor = CursorState { _position = 0 } })
-
-
-clearMinibuffer :: Command
-clearMinibuffer = clearInput (minibuffer.commandInput)
 
 
 focusMinibuffer :: Command
